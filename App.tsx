@@ -1,118 +1,225 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+//bismilah
 
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
   View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Modal,
 } from 'react-native';
+import axios from 'axios';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+const App = () => {
+  const [list, setList] = useState([]);
+  const [visible, setVisible] = useState(false);
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+  const [courseName, setCourseName] = useState('');
+  const [coursePrice, setCoursePrice] = useState(0);
+  const [description, setDescription] = useState('');
+  const [status, setStatus] = useState(1);
+  const [hideId, setHideId] = useState(null);
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
+  useEffect(() => {
+    getList();
+  }, []);
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+  const getList = () => {
+    axios
+      .get('http://10.0.2.2:3000/courses')
+      .then(res => {
+        setList(res.data);
+      })
+      .catch(error => {
+        console.error('Error fetching courses:', error);
+      });
+  };
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+  const handleDelete = item => {
+    axios
+      .delete(`http://10.0.2.2:3000/courses/${item.id}`)
+      .then(() => {
+        getList();
+      })
+      .catch(error => {
+        console.error('Error deleting course:', error);
+      });
+  };
+
+  const handleSave = () => {
+    const data = {
+      course_name: courseName,
+      course_price: Number(coursePrice) || 0,
+      description: description,
+      status: Number(status) || 1,
+    };
+
+    if (hideId == null) {
+      // Create new course
+      axios
+        .post('http://10.0.2.2:3000/courses', data)
+        .then(() => {
+          getList();
+          resetForm();
+        })
+        .catch(error => {
+          console.error('Error creating course:', error);
+        });
+    } else {
+      // Update existing course
+      axios
+        .put(`http://10.0.2.2:3000/courses/${hideId}`, data)
+        .then(() => {
+          getList();
+          resetForm();
+        })
+        .catch(error => {
+          console.error('Error updating course:', error);
+        });
+    }
+  };
+
+  const handleEdit = item => {
+    setVisible(true);
+    setHideId(item.id);
+    setCourseName(item.course_name);
+    setCoursePrice(item.course_price.toString());
+    setDescription(item.description);
+    setStatus(item.status.toString());
+  };
+
+  const handleVisibleModal = () => {
+    setVisible(!visible);
+    setHideId(null);
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setCourseName('');
+    setCoursePrice(0);
+    setDescription('');
+    setStatus(1);
   };
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
+    <SafeAreaView>
+      <View style={styles.header_container}>
+        <Text style={styles.txt_main}>Course List ({list.length})</Text>
+        <TouchableOpacity
+          onPress={handleVisibleModal}
+          style={styles.btnNewContainer}>
+          <Text style={styles.textButton}>New Course</Text>
+        </TouchableOpacity>
+      </View>
+      <Modal animationType="slide" visible={visible}>
+        <SafeAreaView>
+          <View style={styles.form}>
+            <TouchableOpacity onPress={handleVisibleModal}>
+              <Text style={styles.txtClose}>Close</Text>
+            </TouchableOpacity>
+            <TextInput
+              value={courseName}
+              style={styles.text_input}
+              placeholder="Course Name"
+              onChangeText={setCourseName}
+            />
+            <TextInput
+              value={coursePrice.toString()}
+              style={styles.text_input}
+              placeholder="Course Price"
+              onChangeText={setCoursePrice}
+            />
+            <TextInput
+              value={description}
+              style={styles.text_input}
+              placeholder="Description"
+              onChangeText={setDescription}
+            />
+            <TextInput
+              value={status.toString()}
+              style={styles.text_input}
+              placeholder="Status"
+              onChangeText={setStatus}
+            />
+            <TouchableOpacity onPress={handleSave} style={styles.btnContainer}>
+              <Text style={styles.textButton}>
+                {hideId == null ? 'Save' : 'Update'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+      <ScrollView>
+        {list.map((item, index) => (
+          <View style={styles.item_course} key={index}>
+            <View>
+              <Text style={styles.txt_name}>
+                {index + 1}. {item.course_name}
+              </Text>
+              <Text style={styles.txt_item}>{item.description}</Text>
+              <Text
+                style={
+                  item.status === 1 ? styles.txt_enabled : styles.txt_disabled
+                }>
+                {item.status === 1 ? 'Enabled' : 'Disabled'}
+              </Text>
+            </View>
+            <View>
+              <TouchableOpacity onPress={() => handleDelete(item)}>
+                <Text style={styles.txt_del}>Delete</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleEdit(item)}>
+                <Text style={styles.txt_edit}>Edit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ))}
       </ScrollView>
     </SafeAreaView>
   );
-}
-
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
+};
 
 export default App;
+
+const styles = StyleSheet.create({
+  form: {padding: 15, marginTop: 10},
+  txtClose: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginVertical: 10,
+    textAlign: 'right',
+  },
+  text_input: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: 'gray',
+    borderRadius: 10,
+    marginTop: 10,
+  },
+  header_container: {
+    padding: 15,
+    backgroundColor: '#eeeeee',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  txt_main: {fontSize: 22, fontWeight: 'bold'},
+  item_course: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e2e2',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  txt_name: {fontSize: 18, marginTop: 5, fontWeight: 'bold'},
+  txt_item: {fontSize: 14, marginTop: 5},
+  txt_enabled: {fontSize: 14, marginTop: 5, color: 'green', fontWeight: 'bold'},
+  txt_disabled: {fontSize: 14, marginTop: 5, color: 'red', fontWeight: 'bold'},
+  txt_del: {fontSize: 14, marginTop: 5, color: 'red', fontWeight: 'bold'},
+  txt_edit: {fontSize: 14, marginTop: 5, color: 'blue', fontWeight: 'bold'},
+  btnContainer: {padding: 15, backgroundColor: '#000', marginTop: 20},
+  btnNewContainer: {padding: 10, backgroundColor: '#000'},
+  textButton: {textAlign: 'center', color: '#FFF'},
+});
